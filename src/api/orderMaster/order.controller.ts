@@ -234,7 +234,7 @@ export default class OrderController {
 
       const totalAmount = orderData[0]?.TotalAmount || 0;
       const refundAmount = refundData[0]?.totalAmount || 0;
-      let refundTotal = totalAmount - refundAmount;
+      let refundTotal = totalAmount - refundAmount || 0;
 
       if (refundTotal <= 0)
         return response.formatter.error(

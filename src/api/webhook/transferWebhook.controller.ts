@@ -49,9 +49,12 @@ export default class TransferWebhookController {
               if (transfer) {
                 let { sellerId } = transfer.metadata || {};
 
-                const balaceData = await this.balanceHistoryService.findOne({
-                  sellerId: sellerId,
-                });
+                const balaceData = await this.balanceHistoryService.findOne(
+                  {
+                    sellerId: sellerId,
+                  },
+                  { sort: { createdAt: -1 } }
+                );
                 let openingBal: any = 0;
                 let closingBal = transfer?.amount;
                 let transferAmt = transfer?.amount;
@@ -60,7 +63,7 @@ export default class TransferWebhookController {
                     (closingBal /= 100),
                     (transferAmt /= 100);
                 }
-                if (!!balaceData) {
+                if (balaceData) {
                   openingBal = balaceData.closingBalance;
                   closingBal += balaceData.closingBalance;
                 }

@@ -42,8 +42,8 @@ export default class CardController {
       if (!userInfo)
         return response.formatter.error({}, false, "USER_DOES_NOT_EXISTS");
 
-      let stripeBankId = userInfo?.stp_account_id || null;
-      if (!stripeBankId) {
+      let stripeCustId = userInfo?.stp_account_id || null;
+      if (!stripeCustId) {
         var sourceIp = request.ip;
         const account = await stripe.accounts.create({
           type: "custom",
@@ -66,10 +66,10 @@ export default class CardController {
             ip: sourceIp,
           },
         });
-        stripeBankId = account.id;
+        stripeCustId = account.id;
       }
       const update: any = {
-        stp_account_id: stripeBankId,
+        stp_account_id: stripeCustId,
         stp_account_status: "pending",
       };
       await this.userService.update({ _id: request.data.id }, { $set: update });
@@ -102,7 +102,7 @@ export default class CardController {
       }
 
       const bankAccount = await stripe.accounts.createExternalAccount(
-        stripeBankId,
+        stripeCustId,
         {
           external_account: token.id,
         }

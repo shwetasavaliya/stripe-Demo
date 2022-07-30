@@ -66,9 +66,11 @@ export default class WebhookController {
                 );
               }
 
-              if (resultUser.stp_account_status != "verified") {
+              if (resultUser.stp_account_status !== "verified") {
                 var { charges_enabled, payouts_enabled, requirements } =
                   account || {};
+                var userId = resultUser._id;
+
                 if (
                   charges_enabled &&
                   payouts_enabled &&
@@ -77,7 +79,6 @@ export default class WebhookController {
                   requirements.eventually_due.length === 0 &&
                   requirements.pending_verification.length === 0
                 ) {
-                  var userId = resultUser._id;
                   var update: any = {
                     stp_account_status: "verified",
                   };
@@ -230,9 +231,12 @@ export default class WebhookController {
                   { $set: updateObj }
                 );
                 const balaceData: any =
-                  await this.balanceHistoryService.findOne({
-                    sellerId: sellerId,
-                  });
+                  await this.balanceHistoryService.findOne(
+                    {
+                      sellerId: sellerId,
+                    },
+                    { sort: { createdAt: -1 } }
+                  );
                 let openingBal: any = 0;
                 let closingBal = payout?.amount;
                 let transferAmt = payout?.amount;
@@ -243,7 +247,7 @@ export default class WebhookController {
                 }
                 if (!!balaceData) {
                   openingBal = balaceData.closingBalance;
-                  closingBal -= balaceData.closingBalance;
+                  closingBal = balaceData.closingBalance - transferAmt;
                 }
                 var balanceObj: any = {
                   sellerId: sellerId,
@@ -255,6 +259,7 @@ export default class WebhookController {
                   paymentInfo: payout || {},
                 };
                 await this.balanceHistoryService.create(balanceObj);
+
                 return response.formatter.ok(true, "PAYOUT_PAID_SUCCESSFULLY");
               }
             }

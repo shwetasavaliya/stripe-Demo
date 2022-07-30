@@ -25,8 +25,6 @@ export default class CardController {
   @Post("/create", { transformResponse: true })
   async cardCreate(@Req() request: any, @Res() response: any) {
     try {
-      // const { tokenId } = body;
-
       const userInfo = await this.userService.findOne({ _id: request.data.id });
       if (!userInfo)
         return response.formatter.error({}, false, "USER_DOES_NOT_EXISTS");
