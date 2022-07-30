@@ -1,7 +1,5 @@
 # stripe-Demo
 
-run build npm run build
-
-run project npm run dev
-
-install module npm install
+- run the build ==> npm run build-dev
+- run the project ==> npm run dev
+- install module ==> npm
