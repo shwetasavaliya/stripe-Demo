@@ -48,7 +48,13 @@ export default class TransferWebhookController {
               var { object: transfer } = data;
               if (transfer) {
                 let { sellerId } = transfer.metadata || {};
-
+                await this.paymentService.updateMany(
+                  {
+                    userId: sellerId,
+                    payment_type: "transfer",
+                  },
+                  { paymentStatus: "successed" }
+                );
                 const balaceData = await this.balanceHistoryService.findOne(
                   {
                     sellerId: sellerId,
@@ -93,23 +99,6 @@ export default class TransferWebhookController {
                     payment_type: "transfer",
                   },
                   { paymentStatus: "failed" }
-                );
-              }
-            }
-            break;
-
-          case "transfer.paid":
-            {
-              var { object: transfer } = data;
-              if (transfer) {
-                let { sellerId } = transfer.metadata || {};
-
-                await this.paymentService.updateMany(
-                  {
-                    userId: sellerId,
-                    payment_type: "transfer",
-                  },
-                  { paymentStatus: "successed" }
                 );
               }
             }
