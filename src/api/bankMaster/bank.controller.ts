@@ -148,10 +148,46 @@ export default class CardController {
       if (!sellerData) {
         return response.formatter.error({}, false, "USER_NOT_FOUND");
       }
-      const stripeActid = sellerData?.stp_account_id || null;
+      let stripeActid = sellerData?.stp_account_id || null;
 
       if (!stripeActid) {
-        return response.formatter.error({}, false, "STRIPE_ACCOUNT_NOT_FOUND");
+        if (!stripeActid) {
+          const account = await stripe.accounts.create({
+            type: "custom",
+            country: "US",
+            email: sellerData.email,
+            business_type: "individual",
+            capabilities: {
+              card_payments: { requested: true },
+              transfers: { requested: true },
+            },
+            business_profile: {
+              mcc: 5661,
+              url: "www.google.com",
+            },
+            settings: {
+              payouts: {
+                schedule: {
+                  interval: "manual",
+                },
+              },
+            },
+            tos_acceptance: {
+              date: Math.floor(time / 1000),
+              ip: "127.0.0.1",
+            },
+          });
+          stripeActid = account.id;
+        }
+        const update: any = {
+          stp_account_id: stripeActid,
+          stp_account_status: "pending",
+        };
+
+        await this.userService.update(
+          { _id: request.data.id },
+          { $set: update }
+        );
       }
 
       await stripe.accounts.updateExternalAccount(stripeActid, bankAccountId, {
