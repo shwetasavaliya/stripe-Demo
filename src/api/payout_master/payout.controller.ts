@@ -43,7 +43,6 @@ export default class PayoutController {
       if (userData.stp_account_status !== "verified") {
         return response.formatter.error(false, "PLEASE_VERIFIED_BANK_ACCOUNT");
       }
-      let acc: any;
       if (!bank_account) {
         const resultBankAccounts: any = await this.bankService.findOne({
           sellerId: request.data.id,
@@ -54,7 +53,7 @@ export default class PayoutController {
       if (!bank_account)
         return response.formatter.error(false, "BANK_ACCOUNT_NOT_FOUND");
 
-      const payout = await stripe.payouts.create(
+      await stripe.payouts.create(
         {
           amount: paymentAmount * 100,
           currency: "usd",
@@ -65,16 +64,6 @@ export default class PayoutController {
         },
         { stripeAccount: stpAccountId }
       );
-
-      const payoutObj: any = {
-        sellerId: request.data.id,
-        stripePayoutId: payout.id,
-        destinationId: payout.destination,
-        paymentAmount: payout.amount / 100,
-        currency: payout.currency,
-        arrival_date: payout.arrival_date,
-        stripe_status: payout.status,
-      };
 
       return response.formatter.ok(true, "PAYOUT_CREATE_SUCESSFULLY");
     } catch (error) {

@@ -10,7 +10,6 @@ import {
 } from "routing-controllers";
 import PaymentService from "../payment_master/payment.service";
 import RefundService from "../refundMaster/refund.service";
-import UserService from "../user/user.service";
 import { STRIPE_SECRET_KEY } from "../../config";
 import { WEBHOOK_CHARGE_SECRET_KEY } from "../../config";
 const stripe = require("stripe")(STRIPE_SECRET_KEY);

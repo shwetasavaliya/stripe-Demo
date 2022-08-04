@@ -112,14 +112,16 @@ export default class RefundController {
         stripeStatus: refund.status,
       };
 
-      await this.refundService.create(refundObj);
-      await this.orderDetailService.updateOne(
-        {
-          orderId: payment[0].orderId._id,
-          productId: productId,
-        },
-        { $set: { status: "return" } }
-      );
+      await Promise.all([
+        await this.refundService.create(refundObj),
+        await this.orderDetailService.updateOne(
+          {
+            orderId: payment[0].orderId._id,
+            productId: productId,
+          },
+          { $set: { status: "return" } }
+        ),
+      ]);
 
       return response.formatter.ok(true, "REFUND_ADD_SUCCESS");
     } catch (error) {
