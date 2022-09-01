@@ -56,7 +56,7 @@ export default class CardController {
           cvc: "314",
         },
       });
-      console.log("token1", token1);
+      // console.log("token1", token1);
       const token = await stripe.tokens.retrieve(token1.id);
 
       const getUser = await this.cardService.findOne({
