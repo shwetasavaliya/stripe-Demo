@@ -1,5 +1,6 @@
 import {
   Body,
+  Delete,
   Get,
   JsonController,
   Post,
@@ -10,7 +11,7 @@ import {
 } from "routing-controllers";
 import CardService from "./card.service";
 import UserService from "../user/user.service";
-import { CardDTO } from "./card.validator";
+import { DeleteCardDTO } from "./card.validator";
 import { Auth } from "../../middleware/auth";
 import { STRIPE_SECRET_KEY } from "../../config";
 const stripe = require("stripe")(STRIPE_SECRET_KEY);
@@ -22,13 +23,9 @@ export default class CardController {
   private userService: UserService = new UserService();
 
   @Post("/create", { transformResponse: true })
-  async cardCreate(
-    @Req() request: any,
-    @Res() response: any,
-    @Body({ validate: true }) body: CardDTO
-  ) {
+  async cardCreate(@Req() request: any, @Res() response: any) {
     try {
-      const { tokenId } = body;
+      // const { tokenId } = body;
 
       const userInfo = await this.userService.findOne({ _id: request.data.id });
       if (!userInfo)
@@ -51,16 +48,16 @@ export default class CardController {
           { $set: update }
         );
       }
-      // const token1 = await stripe.tokens.create({
-      //   card: {
-      //     number: "4242424242424242",
-      //     exp_month: 7,
-      //     exp_year: 2023,
-      //     cvc: "314",
-      //   },
-      // });
-      // console.log("token1", token1);
-      const token = await stripe.tokens.retrieve(tokenId);
+      const token1 = await stripe.tokens.create({
+        card: {
+          number: "5555555555554444",
+          exp_month: 7,
+          exp_year: 2023,
+          cvc: "314",
+        },
+      });
+      console.log("token1", token1);
+      const token = await stripe.tokens.retrieve(token1.id);
 
       const getUser = await this.cardService.findOne({
         customerId: request.data.id,
@@ -82,10 +79,52 @@ export default class CardController {
         await this.cardService.create(cardObj);
       }
 
+      const cardDetail = await this.cardService.findOne({
+        customerId: request.data.id,
+      });
+
+      if (cardDetail) {
+        await this.userService.updateOne(
+          { _id: cardDetail.customerId },
+          { $set: { stp_account_status: "verified" } }
+        );
+      }
+
       return response.formatter.ok(true, "CARD_ADD_SUCCESS");
     } catch (error) {
       console.log("ERR:: ", error);
       return response.formatter.error({}, false, "CARD_ADD_FAILED", error);
+    }
+  }
+
+  @Delete("/delete-card", { transformRequest: true })
+  async cardDelete(
+    @Req() request: any,
+    @Res() response: any,
+    @Body({ validate: true }) body: DeleteCardDTO
+  ) {
+    try {
+      const { cardId } = body;
+      const userData = await this.userService.findOne({ _id: request.data.id });
+      if (!userData) {
+        return response.formatter.error({}, false, "CUSTOMER_NOT_EXIST");
+      }
+
+      const stpAccountId = userData?.stp_cust_id || null;
+
+      await stripe.customers.deleteSource(stpAccountId, cardId);
+
+      await this.cardService.updateOne(
+        {
+          stripe_card_id: cardId,
+        },
+        { $set: { is_deleted: true } }
+      );
+
+      return response.formatter.ok(true, "CARD_DELETED_SUCCESS");
+    } catch (error) {
+      console.log("ERR:: ", error);
+      return response.formatter.error({}, false, "CARD_DELETE_FAILED", error);
     }
   }
 }

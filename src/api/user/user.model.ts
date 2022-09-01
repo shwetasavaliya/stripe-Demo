@@ -12,7 +12,7 @@ export const UsersSchema: Mongoose.Schema<IUser> = new Mongoose.Schema({
   role: { type: String, enum: ["seller", "customer"], required: true },
   stp_cust_id: { type: String, default: null },
   stp_account_id: { type: String, default: null },
-  stp_account_status: { type: String, default: null },
+  stp_account_status: { type: String, default: "pending" },
   is_deleted: { type: Boolean, default: false },
   status: { type: String, default: "active" },
   date_created: { type: Date, default: Date.now() },

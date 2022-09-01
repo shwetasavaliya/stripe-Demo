@@ -1,8 +1,8 @@
 import * as Mongoose from "mongoose";
 
 export interface IPayment extends Mongoose.Document {
-  orderId?: String;
-  userId?: String;
+  orderId?: Mongoose.Schema.Types.ObjectId;
+  userId?: Mongoose.Schema.Types.ObjectId;
   stripe_txn_id?: String;
   payment_type?: String;
   amount?: Number;

@@ -10,7 +10,7 @@ import { Nullable } from "src/constants/customTypes";
 import { IFees } from "./fees.interface";
 import { FeesModel } from "./feees.model";
 
-export default class PaymentService implements IBaseService<IFees> {
+export default class FeesService implements IBaseService<IFees> {
   private model: Model<IFees>;
 
   public constructor() {

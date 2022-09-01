@@ -60,6 +60,10 @@ export default class BankService implements IBaseService<IBank> {
     return this.model.findByIdAndUpdate(query, updateObj, { new: true });
   };
 
+  updateMany = async (query: any, updateObj: any) => {
+    return this.model.updateMany(query, updateObj, { new: true });
+  };
+
   delete = async (query: any): Promise<Nullable<IBank>> => {
     return this.model.findByIdAndRemove("id");
   };

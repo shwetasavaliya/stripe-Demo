@@ -13,3 +13,8 @@ export class BankDTO {
   @IsString()
   accountNumber: string;
 }
+
+export class bankDTO {
+  @IsString()
+  bankAccountId: string;
+}

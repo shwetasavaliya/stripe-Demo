@@ -7,25 +7,29 @@ import {
 } from "mongoose";
 import { IBaseService } from "src/baseService/baseService.interface";
 import { Nullable } from "src/constants/customTypes";
-import { ICard } from "./card.interface";
-import { CardModel } from "./card.model";
+import { IOrderDetail } from "./orderDetail.interface";
+import { OrderDetailModel } from "./orderDetail.model";
 
-export default class CardService implements IBaseService<ICard> {
-  private model: Model<ICard>;
+export default class OrderDetailService implements IBaseService<IOrderDetail> {
+  private model: Model<IOrderDetail>;
 
   public constructor() {
-    this.model = CardModel;
+    this.model = OrderDetailModel;
   }
 
-  create = async (item: ICard): Promise<ICard> => {
+  create = async (item: IOrderDetail): Promise<IOrderDetail> => {
     return this.model.create(item);
+  };
+
+  bulkCreate = async (item: IOrderDetail[]): Promise<IOrderDetail[]> => {
+    return this.model.insertMany(item);
   };
 
   findById = async (
     id: string,
     projection: any = {},
     options: QueryOptions = { lean: true }
-  ): Promise<Nullable<ICard>> => {
+  ): Promise<Nullable<IOrderDetail>> => {
     return this.model.findById(id, projection, options);
   };
 
@@ -33,38 +37,42 @@ export default class CardService implements IBaseService<ICard> {
     query: any,
     options: QueryOptions = {},
     projection?: any | null
-  ): Promise<Nullable<ICard>> => {
+  ): Promise<Nullable<IOrderDetail>> => {
     return this.model.findOne(query, projection, options).lean();
   };
 
   updateOne = async (
     query: any,
-    updateObj: UpdateQuery<ICard>,
+    updateObj: UpdateQuery<IOrderDetail>,
     options: QueryFindOneAndUpdateOptions = { new: true, upsert: false }
-  ): Promise<Nullable<ICard>> => {
+  ): Promise<Nullable<IOrderDetail>> => {
     return this.model.findOneAndUpdate(query, updateObj, options).lean();
   };
 
   find = async (
-    query: FilterQuery<ICard>,
+    query: FilterQuery<IOrderDetail>,
     projection: any = {},
     options: QueryOptions = { lean: true }
-  ): Promise<ICard[]> => {
+  ): Promise<IOrderDetail[]> => {
     return this.model.find(query, projection, options);
   };
 
   update = async (
     query: any,
-    updateObj: UpdateQuery<ICard>
-  ): Promise<Nullable<ICard>> => {
+    updateObj: UpdateQuery<IOrderDetail>
+  ): Promise<Nullable<IOrderDetail>> => {
     return this.model.findByIdAndUpdate(query, updateObj, { new: true });
   };
 
-  delete = async (query: any): Promise<Nullable<ICard>> => {
+  updateMany = async (query: any, updateObj: any) => {
+    return this.model.updateMany(query, updateObj, { new: true });
+  };
+
+  delete = async (query: any): Promise<Nullable<IOrderDetail>> => {
     return this.model.findByIdAndRemove("id");
   };
 
-  aggregate = async (pipeline: any[]): Promise<ICard[]> => {
+  aggregate = async (pipeline: any[]): Promise<IOrderDetail[]> => {
     return this.model.aggregate(pipeline);
   };
 }

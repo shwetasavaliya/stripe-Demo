@@ -13,6 +13,7 @@ import ProductService from "../productMaster/product.service";
 import UserService from "../user/user.service";
 import PaymentService from "../payment_master/payment.service";
 import FeesService from "../feesMaster/fees.service";
+import OrderDetailService from "../orderDetailMaster/orderDetail.service";
 import { OrderDTO, TransferDTO } from "./order.validator";
 import { Auth } from "../../middleware/auth";
 import { STRIPE_SECRET_KEY } from "../../config";
@@ -27,6 +28,7 @@ export default class OrderController {
   private userService: UserService = new UserService();
   private paymentService: PaymentService = new PaymentService();
   private feesService: FeesService = new FeesService();
+  private orderDetailService: OrderDetailService = new OrderDetailService();
 
   @Post("/create", { transformResponse: true })
   async orderCreate(
@@ -64,6 +66,7 @@ export default class OrderController {
         customerId: request.data.id,
         totalAmount,
       };
+
       const orderCreate: any = await this.orderService.create(orderData);
 
       let chargePercentage: any;
@@ -83,15 +86,14 @@ export default class OrderController {
       const customer: any = await this.userService.findOne({
         _id: request.data.id,
       });
-
       const charge: any = await stripe.charges.create({
         amount: finalAmount * 100,
         currency: "usd",
         description: "Payment from customer",
         customer: customer.stp_cust_id,
         metadata: {
-          customerId: request.data.id,
-          orderId: orderCreate._id,
+          customerId: customer._id.toString(),
+          orderId: orderCreate._id.toString(),
         },
       });
 
@@ -102,7 +104,6 @@ export default class OrderController {
         payment_type: charge.object,
         amount: charge.amount / 100 || 0,
         currency: charge.currency,
-        paymentStatus: charge.status,
         paymentInfo: charge.outcome,
         feeAmount: feeAmount,
         feePercentage: chargePercentage,
@@ -110,23 +111,26 @@ export default class OrderController {
 
       //Transfer
       let ele: any;
+      let orderDetailObj: any = [];
       for (ele of orderDetail) {
+        let { quantity = 0 } = ele;
         const product: any = await this.productService.findOne({
           _id: ele.productId,
         });
 
+        let totalPrice = quantity * product?.price;
         let transferPercentage: any;
         for (const feeData of sellerFee.fee_structure) {
           if (
-            product?.price <= feeData.max_amount &&
-            product?.price >= feeData.min_amount
+            totalPrice <= feeData.max_amount &&
+            totalPrice >= feeData.min_amount
           ) {
             transferPercentage = feeData.percentage;
             break;
           }
         }
-        const transferFeeAmount = (product?.price * transferPercentage) / 100;
-        const transferAmount = product?.price - transferFeeAmount;
+        const transferFeeAmount = (totalPrice * transferPercentage) / 100;
+        const transferAmount = totalPrice - transferFeeAmount;
 
         paymentObj.push({
           orderId: orderCreate?._id,
@@ -134,12 +138,22 @@ export default class OrderController {
           payment_type: "transfer",
           amount: transferAmount || 0,
           currency: "usd",
-          paymentStatus: "pending",
           feeAmount: transferFeeAmount,
           feePercentage: transferPercentage,
         });
+
+        orderDetailObj.push({
+          orderId: orderCreate?._id,
+          productId: product?._id,
+          amount: totalPrice,
+          sellerAmount: transferAmount,
+          status: "purchase",
+        });
       }
-      await this.paymentService.bulkCreate(paymentObj);
+      await Promise.all([
+        this.orderDetailService.bulkCreate(orderDetailObj),
+        this.paymentService.bulkCreate(paymentObj),
+      ]);
       return response.formatter.ok(orderCreate, true, "ORDER_ADD_SUCCESS");
     } catch (error) {
       console.log("ERR:: ", error);
@@ -180,14 +194,57 @@ export default class OrderController {
           },
         },
       ];
-      console.log("group::::::", group);
 
-      const orderData: any = await this.paymentService.aggregate(group);
-      console.log(" orderData[0]:::", orderData[0]);
+      const refundaAgg: any = [
+        {
+          $lookup: {
+            from: "product_masters",
+            localField: "productId",
+            foreignField: "_id",
+            as: "productId",
+          },
+        },
+        {
+          $unwind: {
+            path: "$productId",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $match: {
+            "productId.sellerId": Mongoose.Types.ObjectId(sellerId),
+            status: "return",
+            is_transfer: false,
+          },
+        },
+        {
+          $group: {
+            _id: "$productId.sellerId",
+            totalAmount: {
+              $sum: "$sellerAmount",
+            },
+          },
+        },
+      ];
+
+      const [orderData, refundData]: any = await Promise.all([
+        this.paymentService.aggregate(group),
+        this.orderDetailService.aggregate(refundaAgg),
+      ]);
+
+      const totalAmount = orderData[0]?.TotalAmount || 0;
+      const refundAmount = refundData[0]?.totalAmount || 0;
+      let refundTotal = totalAmount - refundAmount;
+
+      if (refundTotal <= 0)
+        return response.formatter.error(
+          false,
+          "YOU_HAVE_NOT_SUFFICIENT_AMOUNT"
+        );
       if (orderData && orderData.length) {
         if (sellerData.stp_account_id) {
           const transfer = await stripe.transfers.create({
-            amount: orderData[0].TotalAmount * 100 || 0,
+            amount: refundTotal * 100 || 0,
             currency: "usd",
             destination: sellerData.stp_account_id,
             transfer_group: sellerId,
@@ -203,6 +260,46 @@ export default class OrderController {
           await this.paymentService.updateMany(
             { userId: sellerId, payment_type: "transfer", stripe_txn_id: null },
             { $set: update }
+          );
+
+          const orderDetailAgg = [
+            {
+              $lookup: {
+                from: "product_masters",
+                localField: "productId",
+                foreignField: "_id",
+                as: "productId",
+              },
+            },
+            {
+              $unwind: {
+                path: "$productId",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $match: {
+                "productId.sellerId": Mongoose.Types.ObjectId(sellerId),
+              },
+            },
+            {
+              $group: {
+                _id: "$productId.sellerId",
+                orderId: {
+                  $addToSet: "$_id",
+                },
+              },
+            },
+          ];
+          const orderDetails: any = await this.orderDetailService.aggregate(
+            orderDetailAgg
+          );
+          await this.orderDetailService.updateMany(
+            {
+              _id: { $in: orderDetails[0]?.orderId },
+            },
+
+            { $set: { is_transfer: true } }
           );
         }
       }

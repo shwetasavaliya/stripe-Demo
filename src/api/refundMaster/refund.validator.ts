@@ -1,6 +1,9 @@
 import { IsOptional, IsString, IsNumber } from "class-validator";
 
-export class DeleteCardDTO {
+export class RefundDTO {
   @IsString()
-  cardId: string;
+  productId: string;
+
+  @IsString()
+  chargeId: string;
 }
